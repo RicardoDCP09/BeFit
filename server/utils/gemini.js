@@ -39,6 +39,7 @@ Genera un plan de 7 días en formato JSON con la siguiente estructura exacta:
           "sets": 3,
           "reps": "12",
           "rest": "60s",
+          "estimatedTime": 180,
           "notes": "Nota opcional"
         }
       ],
@@ -49,6 +50,10 @@ Genera un plan de 7 días en formato JSON con la siguiente estructura exacta:
   "tips": ["Consejo 1", "Consejo 2"],
   "weeklyGoal": "Descripción del objetivo semanal"
 }
+
+IMPORTANTE: 
+- El campo "estimatedTime" es el tiempo estimado en SEGUNDOS para completar todas las series del ejercicio (incluyendo descansos entre series). Calcula basándote en: (sets * tiempo_por_serie) + (sets-1 * tiempo_descanso). Por ejemplo, 3 series de 12 reps con 60s descanso = aproximadamente 180 segundos.
+- Los "tips" deben ser texto plano y natural, SIN formato markdown (sin asteriscos **, sin negritas, sin viñetas). Escribe cada consejo como una oración completa y natural.
 
 Incluye ejercicios apropiados para el nivel y objetivo del usuario. Alterna grupos musculares. Incluye días de descanso activo o cardio según sea necesario.
 Responde SOLO con el JSON, sin texto adicional.`;

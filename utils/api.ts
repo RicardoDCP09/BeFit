@@ -128,6 +128,25 @@ export const gymApi = {
     }),
 
   getHistory: () => request<{ routines: any[] }>('/gym/history'),
+
+  // Workout Session endpoints
+  startSession: (routineId: number, dayName: string, restTimeUsed: number) =>
+    request<{ session: any }>('/gym/session/start', {
+      method: 'POST',
+      body: JSON.stringify({ routineId, dayName, restTimeUsed }),
+    }),
+
+  completeSession: (sessionId: number, data: { exerciseData: any[]; exercisesCompleted: number }) =>
+    request<{ session: any }>(`/gym/session/${sessionId}/complete`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  getSessions: (limit?: number) =>
+    request<{ sessions: any[] }>(`/gym/sessions${limit ? `?limit=${limit}` : ''}`),
+
+  getSessionStats: () =>
+    request<{ stats: any }>('/gym/sessions/stats'),
 };
 
 // Kitchen API

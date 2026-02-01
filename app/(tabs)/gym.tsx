@@ -1,18 +1,20 @@
+import RestTimerModal from '@/components/RestTimerModal';
+import { useColorScheme } from '@/components/useColorScheme';
+import Colors from '@/constants/Colors';
+import { useGymStore } from '@/store/gymStore';
+import { useWorkoutSessionStore } from '@/store/workoutSessionStore';
+import { FontAwesome } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
   ActivityIndicator,
   Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { FontAwesome } from '@expo/vector-icons';
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useGymStore } from '@/store/gymStore';
-import { DayPlan, Exercise } from '@/types';
 
 export default function GymScreen() {
   const colorScheme = useColorScheme() ?? 'light';
@@ -30,9 +32,19 @@ export default function GymScreen() {
   } = useGymStore();
 
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [showRestConfig, setShowRestConfig] = useState(false);
+
+  const {
+    restTimeConfig,
+    loadRestTimeConfig,
+    setRestTimeConfig,
+    startSession,
+    isSessionActive,
+  } = useWorkoutSessionStore();
 
   useEffect(() => {
     loadCurrentRoutine();
+    loadRestTimeConfig();
   }, []);
 
   useEffect(() => {
@@ -58,6 +70,24 @@ export default function GymScreen() {
   const handleToggleExercise = async (day: string, exerciseIndex: number) => {
     const currentProgress = currentRoutine?.progress?.[day]?.[exerciseIndex] || false;
     await updateProgress(day, exerciseIndex, !currentProgress);
+  };
+
+  const handleStartWorkout = () => {
+    setShowRestConfig(true);
+  };
+
+  const handleRestTimeSelect = async (seconds: number) => {
+    await setRestTimeConfig(seconds);
+    setShowRestConfig(false);
+
+    if (currentRoutine && selectedDayPlan) {
+      try {
+        await startSession(currentRoutine.id, selectedDayPlan);
+        router.push('/workout-session');
+      } catch (err: any) {
+        Alert.alert('Error', err.message || 'No se pudo iniciar la sesión');
+      }
+    }
   };
 
   const selectedDayPlan = currentRoutine?.plan?.weekPlan?.find(
@@ -171,6 +201,15 @@ export default function GymScreen() {
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
         {selectedDayPlan && (
           <>
+            {/* Start Workout Button */}
+            <TouchableOpacity
+              style={[styles.startWorkoutButton, { backgroundColor: colors.primary }]}
+              onPress={handleStartWorkout}
+            >
+              <FontAwesome name="play-circle" size={24} color="#fff" />
+              <Text style={styles.startWorkoutText}>Iniciar Rutina del Día</Text>
+            </TouchableOpacity>
+
             <View style={styles.dayHeader}>
               <Text style={[styles.dayTitle, { color: colors.text }]}>
                 {selectedDayPlan.day}
@@ -261,11 +300,15 @@ export default function GymScreen() {
                 <Text style={[styles.tipsTitle, { color: colors.text }]}>
                   💪 Consejos de la semana
                 </Text>
-                {currentRoutine.plan.tips.map((tip, index) => (
-                  <Text key={index} style={[styles.tipText, { color: colors.textSecondary }]}>
-                    • {tip}
-                  </Text>
-                ))}
+                {currentRoutine.plan.tips.map((tip, index) => {
+                  // Clean markdown formatting from tips
+                  const cleanTip = tip.replace(/\*\*/g, '').replace(/\*/g, '').replace(/^[-•]\s*/g, '');
+                  return (
+                    <Text key={index} style={[styles.tipText, { color: colors.textSecondary }]}>
+                      • {cleanTip}
+                    </Text>
+                  );
+                })}
               </View>
             )}
           </>
@@ -289,6 +332,14 @@ export default function GymScreen() {
           )}
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Rest Time Config Modal */}
+      <RestTimerModal
+        visible={showRestConfig}
+        currentRestTime={restTimeConfig}
+        onSelect={handleRestTimeSelect}
+        onClose={() => setShowRestConfig(false)}
+      />
     </View>
   );
 }
@@ -484,5 +535,19 @@ const styles = StyleSheet.create({
   regenerateText: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  startWorkoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 56,
+    borderRadius: 16,
+    marginBottom: 20,
+    gap: 12,
+  },
+  startWorkoutText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
   },
 });

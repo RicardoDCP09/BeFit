@@ -89,22 +89,47 @@ export const useGymStore = create<GymState>((set, get) => ({
   },
 
   updateProgress: async (day: string, exerciseIndex: number, completed: boolean) => {
-    try {
-      const response = await gymApi.updateProgress(day, exerciseIndex, completed);
+    // Update local state immediately for better UX
+    const currentRoutine = get().currentRoutine;
+    if (currentRoutine) {
+      const updatedProgress = { ...currentRoutine.progress };
+      if (!updatedProgress[day]) {
+        updatedProgress[day] = {};
+      }
+      updatedProgress[day][exerciseIndex] = completed;
 
-      const currentRoutine = get().currentRoutine;
-      if (currentRoutine) {
-        set({
-          currentRoutine: {
-            ...currentRoutine,
-            progress: response.progress,
-          },
-          completionPercentage: response.completionPercentage,
+      // Calculate completion percentage locally
+      const plan = currentRoutine.plan;
+      let totalExercises = 0;
+      let completedExercises = 0;
+
+      if (plan?.weekPlan) {
+        plan.weekPlan.forEach((dayPlan) => {
+          totalExercises += dayPlan.exercises?.length || 0;
+          const dayProgress = updatedProgress[dayPlan.day] || {};
+          Object.values(dayProgress).forEach((isComplete) => {
+            if (isComplete) completedExercises++;
+          });
         });
       }
-    } catch (error: any) {
-      set({ error: error.message || 'Error al actualizar progreso' });
+
+      const completionPercentage = totalExercises > 0
+        ? Math.round((completedExercises / totalExercises) * 100)
+        : 0;
+
+      set({
+        currentRoutine: {
+          ...currentRoutine,
+          progress: updatedProgress,
+        },
+        completionPercentage,
+      });
     }
+
+    // Sync with backend in background (don't await to avoid blocking)
+    gymApi.updateProgress(day, exerciseIndex, completed).catch((error) => {
+      console.log('[GymStore] Backend sync error:', error.message);
+    });
   },
 
   loadHistory: async () => {

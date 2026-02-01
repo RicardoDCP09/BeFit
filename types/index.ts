@@ -36,6 +36,7 @@ export interface Exercise {
   sets: number;
   reps: string;
   rest: string;
+  estimatedTime?: number; // Time in seconds for all sets
   notes?: string;
 }
 
@@ -116,4 +117,41 @@ export interface ApiResponse<T> {
   message?: string;
   error?: string;
   data?: T;
+}
+
+// Workout Session types
+export interface ExerciseSessionData {
+  exerciseIndex: number;
+  name: string;
+  timeSpent: number;      // Actual time in seconds
+  estimatedTime: number;  // Estimated time in seconds
+  setsCompleted: number;
+}
+
+export interface WorkoutSession {
+  id: number;
+  userId: number;
+  routineId: number;
+  dayName: string;
+  startTime: string;
+  endTime?: string;
+  totalDuration?: number;
+  exercisesCompleted: number;
+  exerciseData: ExerciseSessionData[];
+  restTimeUsed: number;
+  isCompleted: boolean;
+}
+
+export interface SessionStats {
+  totalSessions: number;
+  totalTime: number;
+  avgSessionDuration: number;
+  exercisesCompleted: number;
+  thisWeek: number;
+  thisMonth: number;
+}
+
+export interface RestTimeOption {
+  label: string;
+  seconds: number;
 }
