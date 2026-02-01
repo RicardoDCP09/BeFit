@@ -4,14 +4,14 @@ export default {
     slug: "befit",
     version: "1.0.0",
     orientation: "portrait",
-    icon: "./assets/images/icon.png",
+    icon: "./assets/images/BetFit-FavIcon-Naranja.png",
     scheme: "befit",
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
     splash: {
-      image: "./assets/images/splash-icon.png",
+      image: "./assets/images/Befit_Fondo_Blanco.png",
       resizeMode: "contain",
-      backgroundColor: "#4CAF50"
+      backgroundColor: "#FF9800"
     },
     ios: {
       supportsTablet: true,
@@ -22,8 +22,8 @@ export default {
     },
     android: {
       adaptiveIcon: {
-        foregroundImage: "./assets/images/adaptive-icon.png",
-        backgroundColor: "#4CAF50"
+        foregroundImage: "./assets/images/Befit_Sin_Fondo.png",
+        backgroundColor: "#FF9800"
       },
       permissions: ["android.permission.CAMERA"],
       edgeToEdgeEnabled: true,
@@ -32,7 +32,7 @@ export default {
     web: {
       bundler: "metro",
       output: "static",
-      favicon: "./assets/images/favicon.png",
+      favicon: "./assets/images/BetFit-FavIcon-Naranja.png",
       name: "Be Fit - Tu Ecosistema de Bienestar"
     },
     plugins: [
@@ -54,7 +54,7 @@ export default {
       typedRoutes: true
     },
     extra: {
-      apiUrl: process.env.EXPO_PUBLIC_API_URL || "http://localhost:3001/api",
+      apiUrl: process.env.EXPO_PUBLIC_API_URL || null,
       eas: {
         projectId: "your-project-id"
       }

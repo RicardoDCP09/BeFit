@@ -5,6 +5,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { useAuthStore } from '@/store/authStore';
 import { useProfileStore } from '@/store/profileStore';
+import { useThemeStore } from '@/store/themeStore';
 import { useUserStore } from '@/store/userStore';
 import { FontAwesome } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
@@ -13,6 +14,7 @@ import {
   Dimensions,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -41,6 +43,8 @@ export default function ProfileScreen() {
 
   const [showWeightInput, setShowWeightInput] = useState(false);
   const [newWeight, setNewWeight] = useState('');
+
+  const { mode, isDark, setMode, toggleTheme } = useThemeStore();
 
   useEffect(() => {
     loadAll();
@@ -316,6 +320,80 @@ export default function ProfileScreen() {
           ))}
         </View>
       </View>
+
+      {/* Settings Section */}
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>
+          ⚙️ Configuración
+        </Text>
+        <Card variant="elevated">
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <FontAwesome name="moon-o" size={20} color={colors.primary} />
+              <Text style={[styles.settingLabel, { color: colors.text }]}>
+                Modo Oscuro
+              </Text>
+            </View>
+            <Switch
+              value={isDark}
+              onValueChange={toggleTheme}
+              trackColor={{ false: colors.border, true: colors.primary + '60' }}
+              thumbColor={isDark ? colors.primary : '#f4f3f4'}
+            />
+          </View>
+
+          <View style={[styles.settingDivider, { backgroundColor: colors.border }]} />
+
+          <View style={styles.themeOptions}>
+            <Text style={[styles.themeLabel, { color: colors.textSecondary }]}>
+              Tema:
+            </Text>
+            <View style={styles.themeButtons}>
+              <TouchableOpacity
+                style={[
+                  styles.themeButton,
+                  { borderColor: mode === 'light' ? colors.primary : colors.border },
+                  mode === 'light' && { backgroundColor: colors.primary + '15' },
+                ]}
+                onPress={() => setMode('light')}
+              >
+                <FontAwesome name="sun-o" size={16} color={mode === 'light' ? colors.primary : colors.textSecondary} />
+                <Text style={[styles.themeButtonText, { color: mode === 'light' ? colors.primary : colors.textSecondary }]}>
+                  Claro
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.themeButton,
+                  { borderColor: mode === 'dark' ? colors.primary : colors.border },
+                  mode === 'dark' && { backgroundColor: colors.primary + '15' },
+                ]}
+                onPress={() => setMode('dark')}
+              >
+                <FontAwesome name="moon-o" size={16} color={mode === 'dark' ? colors.primary : colors.textSecondary} />
+                <Text style={[styles.themeButtonText, { color: mode === 'dark' ? colors.primary : colors.textSecondary }]}>
+                  Oscuro
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.themeButton,
+                  { borderColor: mode === 'system' ? colors.primary : colors.border },
+                  mode === 'system' && { backgroundColor: colors.primary + '15' },
+                ]}
+                onPress={() => setMode('system')}
+              >
+                <FontAwesome name="mobile" size={16} color={mode === 'system' ? colors.primary : colors.textSecondary} />
+                <Text style={[styles.themeButtonText, { color: mode === 'system' ? colors.primary : colors.textSecondary }]}>
+                  Sistema
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Card>
+      </View>
     </ScrollView>
   );
 }
@@ -528,5 +606,49 @@ const styles = StyleSheet.create({
     fontSize: 10,
     textAlign: 'center',
     marginTop: 4,
+  },
+  settingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  settingInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  settingLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  settingDivider: {
+    height: 1,
+    marginVertical: 16,
+  },
+  themeOptions: {
+    gap: 12,
+  },
+  themeLabel: {
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  themeButtons: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  themeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1.5,
+  },
+  themeButtonText: {
+    fontSize: 13,
+    fontWeight: '500',
   },
 });

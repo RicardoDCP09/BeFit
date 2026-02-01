@@ -1,15 +1,15 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withDelay,
-  Easing,
-} from 'react-native-reanimated';
-import { FontAwesome } from '@expo/vector-icons';
-import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
+import Colors from '@/constants/Colors';
+import { FontAwesome } from '@expo/vector-icons';
+import React, { useEffect } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withTiming,
+} from 'react-native-reanimated';
 
 interface QuoteCardProps {
   quote: string;
@@ -40,7 +40,7 @@ export default function QuoteCard({
 }: QuoteCardProps) {
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
-  
+
   const categoryColor = categoryColors[category] || colors.primary;
   const icon = categoryIcons[category] || 'quote-left';
 
@@ -65,16 +65,16 @@ export default function QuoteCard({
   }));
 
   return (
-    <Animated.View 
+    <Animated.View
       style={[
-        styles.container, 
+        styles.container,
         { backgroundColor: colors.card },
         cardStyle
       ]}
     >
       {/* Accent bar */}
       <View style={[styles.accentBar, { backgroundColor: categoryColor }]} />
-      
+
       <View style={styles.content}>
         {/* Icon */}
         <View style={[styles.iconContainer, { backgroundColor: categoryColor + '15' }]}>
@@ -83,10 +83,10 @@ export default function QuoteCard({
 
         {/* Quote */}
         <View style={styles.quoteContainer}>
-          <FontAwesome 
-            name="quote-left" 
-            size={14} 
-            color={colors.textSecondary} 
+          <FontAwesome
+            name="quote-left"
+            size={14}
+            color={colors.textSecondary}
             style={styles.quoteIcon}
           />
           <Text style={[styles.quoteText, { color: colors.text }]}>
@@ -109,10 +109,8 @@ const styles = StyleSheet.create({
   container: {
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    // @ts-ignore - boxShadow for web compatibility
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
     elevation: 3,
   },
   accentBar: {

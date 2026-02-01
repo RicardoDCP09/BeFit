@@ -90,26 +90,31 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const token = await storage.getItemAsync('token');
 
       if (token) {
-        // Verify token by getting user profile
-        const response = await userApi.getProfile();
-        set({
-          token,
-          user: response.user,
-          isAuthenticated: true,
-          isLoading: false,
-        });
+        try {
+          // Verify token by getting user profile
+          const response = await userApi.getProfile();
+          set({
+            token,
+            user: response.user,
+            isAuthenticated: true,
+            isLoading: false,
+          });
+        } catch (profileError) {
+          console.log('[Auth] Profile fetch failed, clearing token:', profileError);
+          await storage.deleteItemAsync('token');
+          set({
+            token: null,
+            user: null,
+            isAuthenticated: false,
+            isLoading: false,
+          });
+        }
       } else {
         set({ isLoading: false });
       }
     } catch (error) {
-      // Token invalid or expired
-      await storage.deleteItemAsync('token');
-      set({
-        token: null,
-        user: null,
-        isAuthenticated: false,
-        isLoading: false,
-      });
+      console.log('[Auth] loadToken error:', error);
+      set({ isLoading: false });
     }
   },
 

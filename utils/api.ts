@@ -1,16 +1,15 @@
-import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { storage } from './storage';
 
 // Get API URL from environment or use defaults
-const getApiUrl = () => {
-  // Check for production environment variable
-  const envUrl = Constants.expoConfig?.extra?.apiUrl || process.env.EXPO_PUBLIC_API_URL;
-  if (envUrl) {
+const getApiUrl = (): string => {
+  // Check for production environment variable (must be a non-empty string)
+  const envUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (envUrl && typeof envUrl === 'string' && envUrl.startsWith('http')) {
     return envUrl;
   }
 
-  // Development defaults
+  // Development defaults based on platform
   if (Platform.OS === 'android') {
     return 'http://10.0.2.2:3001/api';
   }
@@ -18,6 +17,7 @@ const getApiUrl = () => {
 };
 
 const API_URL = getApiUrl();
+console.log('[API] URL:', API_URL, '| Platform:', Platform.OS);
 
 async function getToken(): Promise<string | null> {
   try {
@@ -32,6 +32,9 @@ async function request<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const token = await getToken();
+  const url = `${API_URL}${endpoint}`;
+
+  console.log('[API] Request:', options.method || 'GET', url);
 
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -42,18 +45,23 @@ async function request<T>(
     (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers,
+    });
 
-  const data = await response.json();
+    const data = await response.json();
 
-  if (!response.ok) {
-    throw new Error(data.error || 'Request failed');
+    if (!response.ok) {
+      throw new Error(data.error || 'Request failed');
+    }
+
+    return data;
+  } catch (error: any) {
+    console.log('[API] Error:', error.message);
+    throw error;
   }
-
-  return data;
 }
 
 // Auth API

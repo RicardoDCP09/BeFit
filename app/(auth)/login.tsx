@@ -1,24 +1,25 @@
+import { useColorScheme } from '@/components/useColorScheme';
+import Colors from '@/constants/Colors';
+import { useAuthStore } from '@/store/authStore';
+import { Link, router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Image as RNImage,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
-  Alert,
+  View,
 } from 'react-native';
-import { Link, router } from 'expo-router';
-import { useAuthStore } from '@/store/authStore';
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
 
 export default function LoginScreen() {
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
-  
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const { login, isLoading, error, clearError } = useAuthStore();
@@ -44,7 +45,11 @@ export default function LoginScreen() {
     >
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={[styles.logo, { color: colors.primary }]}>Be Fit</Text>
+          <RNImage
+            source={require('@/assets/images/Befit_Sin_Fondo.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
             Tu compañero de bienestar
           </Text>
@@ -139,6 +144,10 @@ const styles = StyleSheet.create({
   logo: {
     fontSize: 48,
     fontWeight: 'bold',
+  },
+  logoImage: {
+    width: 150,
+    height: 150,
   },
   subtitle: {
     fontSize: 16,

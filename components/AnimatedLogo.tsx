@@ -1,44 +1,47 @@
+import { useColorScheme } from '@/components/useColorScheme';
+import Colors from '@/constants/Colors';
 import React, { useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withRepeat,
-  withSequence,
-  withDelay,
   Easing,
   interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
 } from 'react-native-reanimated';
-import { FontAwesome } from '@expo/vector-icons';
-import Colors from '@/constants/Colors';
 
 interface AnimatedLogoProps {
   size?: number;
   color?: string;
   showPulse?: boolean;
+  variant?: 'icon' | 'full';
 }
 
-export default function AnimatedLogo({ 
-  size = 80, 
-  color = Colors.light.primary,
-  showPulse = true 
+export default function AnimatedLogo({
+  size = 80,
+  color,
+  showPulse = true,
+  variant = 'icon'
 }: AnimatedLogoProps) {
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme];
+  const logoColor = color || colors.primary;
+
   const scale = useSharedValue(0);
   const rotation = useSharedValue(0);
   const pulseScale = useSharedValue(1);
   const opacity = useSharedValue(0);
 
   useEffect(() => {
-    // Initial animation
     scale.value = withSequence(
       withTiming(1.2, { duration: 400, easing: Easing.out(Easing.back(2)) }),
       withTiming(1, { duration: 200 })
     );
-    
+
     opacity.value = withTiming(1, { duration: 300 });
 
-    // Subtle rotation
     rotation.value = withRepeat(
       withSequence(
         withTiming(5, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
@@ -48,7 +51,6 @@ export default function AnimatedLogo({
       true
     );
 
-    // Pulse effect
     if (showPulse) {
       pulseScale.value = withRepeat(
         withSequence(
@@ -74,26 +76,35 @@ export default function AnimatedLogo({
     opacity: interpolate(pulseScale.value, [1, 1.1], [0.3, 0]),
   }));
 
+  // Select logo based on variant and color scheme
+  const logoSource = variant === 'full'
+    ? colorScheme === 'dark'
+      ? require('@/assets/images/Befit_Fondo_Negro.png')
+      : require('@/assets/images/Befit_Fondo_Blanco.png')
+    : require('@/assets/images/Befit_Sin_Fondo.png');
+
   return (
     <View style={styles.container}>
       {showPulse && (
-        <Animated.View 
+        <Animated.View
           style={[
-            styles.pulse, 
-            { 
-              width: size * 1.5, 
-              height: size * 1.5, 
+            styles.pulse,
+            {
+              width: size * 1.5,
+              height: size * 1.5,
               borderRadius: size * 0.75,
-              backgroundColor: color,
+              backgroundColor: logoColor,
             },
             pulseStyle
-          ]} 
+          ]}
         />
       )}
       <Animated.View style={[styles.logoContainer, logoStyle]}>
-        <View style={[styles.iconWrapper, { width: size, height: size, borderRadius: size / 2 }]}>
-          <FontAwesome name="heartbeat" size={size * 0.5} color={color} />
-        </View>
+        <Image
+          source={logoSource}
+          style={{ width: size, height: size }}
+          resizeMode="contain"
+        />
       </Animated.View>
     </View>
   );
@@ -108,11 +119,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
   },
   logoContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconWrapper: {
-    backgroundColor: 'rgba(76, 175, 80, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
   },

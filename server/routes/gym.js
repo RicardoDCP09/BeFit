@@ -13,8 +13,8 @@ router.post('/generate', authMiddleware, async (req, res) => {
     });
 
     if (!healthProfile || !healthProfile.goal) {
-      return res.status(400).json({ 
-        error: 'Please complete your health profile first' 
+      return res.status(400).json({
+        error: 'Please complete your health profile first'
       });
     }
 
@@ -61,7 +61,7 @@ router.get('/current', authMiddleware, async (req, res) => {
     });
 
     if (!routine) {
-      return res.status(404).json({ error: 'No active routine found' });
+      return res.json({ routine: null, message: 'No active routine found' });
     }
 
     res.json({ routine });
@@ -109,8 +109,8 @@ router.put('/progress', authMiddleware, async (req, res) => {
       });
     }
 
-    const completionPercentage = totalExercises > 0 
-      ? Math.round((completedExercises / totalExercises) * 100) 
+    const completionPercentage = totalExercises > 0
+      ? Math.round((completedExercises / totalExercises) * 100)
       : 0;
 
     res.json({

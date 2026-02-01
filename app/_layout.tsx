@@ -1,15 +1,16 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DefaultTheme, ThemeProvider, type Theme } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import 'react-native-reanimated';
 
 import LoadingScreen from '@/components/LoadingScreen';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { useAuthStore } from '@/store/authStore';
+import { useThemeStore } from '@/store/themeStore';
 
 export {
   ErrorBoundary
@@ -28,6 +29,7 @@ export default function RootLayout() {
   });
 
   const { loadToken } = useAuthStore();
+  const { loadTheme } = useThemeStore();
 
   useEffect(() => {
     if (error) throw error;
@@ -35,7 +37,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (loaded) {
-      loadToken().finally(() => {
+      Promise.all([loadToken(), loadTheme()]).finally(() => {
         SplashScreen.hideAsync();
       });
     }
@@ -49,12 +51,26 @@ export default function RootLayout() {
 }
 
 function RootLayoutNav() {
-  const colorScheme = useColorScheme() ?? 'light';
+  const colorScheme = useColorScheme();
   const colors = Colors[colorScheme];
   const router = useRouter();
   const segments = useSegments();
 
   const { isAuthenticated, isLoading, user } = useAuthStore();
+
+  // Custom themes with orange primary color
+  const customTheme: Theme = useMemo(() => ({
+    dark: colorScheme === 'dark',
+    colors: {
+      primary: colors.primary,
+      background: colors.background,
+      card: colors.card,
+      text: colors.text,
+      border: colors.border,
+      notification: colors.primary,
+    },
+    fonts: DefaultTheme.fonts,
+  }), [colorScheme, colors]);
 
   useEffect(() => {
     if (isLoading) return;
@@ -87,7 +103,7 @@ function RootLayoutNav() {
   }
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={customTheme}>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="onboarding" />

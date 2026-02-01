@@ -1,13 +1,13 @@
+import { useColorScheme } from '@/components/useColorScheme';
+import Colors from '@/constants/Colors';
+import { FontAwesome } from '@expo/vector-icons';
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
-import { FontAwesome } from '@expo/vector-icons';
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
 
 interface CardProps {
   children?: React.ReactNode;
@@ -34,7 +34,7 @@ export default function Card({
 }: CardProps) {
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
-  
+
   const scale = useSharedValue(1);
 
   const handlePressIn = () => {
@@ -53,15 +53,13 @@ export default function Card({
     transform: [{ scale: scale.value }],
   }));
 
-  const getVariantStyle = () => {
+  const getVariantStyle = (): ViewStyle => {
     switch (variant) {
       case 'elevated':
         return {
           backgroundColor: colors.card,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.15,
-          shadowRadius: 12,
+          // @ts-ignore - boxShadow for web compatibility
+          boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)',
           elevation: 5,
         };
       case 'outlined':
@@ -78,9 +76,9 @@ export default function Card({
   };
 
   const content = (
-    <Animated.View 
+    <Animated.View
       style={[
-        styles.container, 
+        styles.container,
         getVariantStyle(),
         style,
         animatedStyle
