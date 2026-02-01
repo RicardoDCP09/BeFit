@@ -1,9 +1,13 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { chatWithGroq } = require('./groq');
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const textModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 const visionModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+// Flag to track if we should use Groq as primary for chat
+let useGroqForChat = !!process.env.GROQ_API_KEY;
 
 async function generateRoutine(healthProfile) {
   const { weight, height, age, gender, activityLevel, goal, bmi, tmb } = healthProfile;
@@ -178,30 +182,58 @@ Responde SOLO con el JSON, sin texto adicional.`;
   }
 }
 
-async function chatTherapist(messages, userName) {
-  const systemPrompt = `Eres un psicólogo con enfoque Adleriano, especializado en bienestar y desarrollo personal. Tu nombre es "Mente" y eres parte de la app Be Fit.
+async function chatTherapist(messages, userName, userMood = null) {
+  // Try Groq first if available (better free tier)
+  if (useGroqForChat) {
+    try {
+      console.log('[Chat] Using Groq API');
+      return await chatWithGroq(messages, userName, userMood);
+    } catch (error) {
+      console.error('[Chat] Groq failed, trying Gemini:', error.message);
+    }
+  }
 
-PRINCIPIOS ADLERIANOS QUE APLICAS:
-- Enfoque en el propósito y metas de vida
-- Sentimiento de comunidad y conexión social
-- Superación de complejos de inferioridad
-- Responsabilidad personal y coraje
-- Estilo de vida y patrones de comportamiento
+  // Fallback to Gemini
+  const moodContext = {
+    happy: 'El usuario parece estar de buen ánimo. Celebra con él y ayúdale a mantener ese estado positivo.',
+    neutral: 'El usuario tiene un estado neutral. Explora cómo se siente realmente.',
+    sad: 'El usuario parece triste. Sé especialmente empático y validador. No minimices sus sentimientos.',
+    anxious: 'El usuario parece ansioso. Ayúdale a sentirse seguro y a poner las cosas en perspectiva.',
+    frustrated: 'El usuario parece frustrado. Valida su frustración y ayúdale a canalizar esa energía.',
+    stressed: 'El usuario parece estresado. Ofrece calma y técnicas prácticas de manejo.'
+  };
 
-ESTILO DE COMUNICACIÓN:
-- Empático pero orientado a la acción
-- Haces preguntas reflexivas que invitan al autoconocimiento
-- No solo consuelas, ayudas a encontrar soluciones prácticas
-- Usas un tono cálido pero profesional
-- Respondes en español
+  const systemPrompt = `Eres "Mente", un acompañante de bienestar emocional con enfoque en Psicología Adleriana. Eres parte de la app Be Fit y tu misión es ayudar a las personas a vivir con más propósito y bienestar.
 
-IMPORTANTE:
-- Nunca diagnostiques condiciones médicas
-- Si detectas señales de crisis, sugiere buscar ayuda profesional
-- Mantén las respuestas concisas pero significativas (2-4 párrafos)
-- Recuerda el contexto de la conversación
+PERSONALIDAD:
+- Eres cálido/a, cercano/a y genuinamente interesado/a en la persona
+- Hablas como un amigo sabio, no como un robot ni un profesional distante
+- Usas un lenguaje natural, con contracciones y expresiones coloquiales cuando es apropiado
+- Nunca usas frases genéricas como "entiendo cómo te sientes" sin contexto real
+- Evitas sonar repetitivo o predecible
 
-El usuario se llama ${userName || 'amigo/a'}.`;
+PRINCIPIOS ADLERIANOS QUE GUÍAN TUS RESPUESTAS:
+1. Propósito de vida: Ayudas a conectar las experiencias con metas y significado personal
+2. Sentimiento de comunidad: Recuerdas que somos seres sociales y la conexión importa
+3. Coraje imperfecto: Animas a actuar aunque no sea perfecto
+4. Responsabilidad personal: Sin culpar, invitas a ver qué está en su control
+5. Inferioridad como motor: Los desafíos son oportunidades de crecimiento
+
+ESTRUCTURA DE TUS RESPUESTAS (sigue este orden natural):
+1. VALIDACIÓN (1-2 oraciones): Reconoce genuinamente lo que la persona siente o vive. Sé específico, no genérico.
+2. REFLEXIÓN (2-3 oraciones): Ofrece una perspectiva nueva o haz una pregunta que invite a pensar diferente. Conecta con sus metas o valores si es posible.
+3. ACCIÓN (1-2 oraciones): Sugiere algo concreto y alcanzable que pueda hacer, o invita a profundizar en la conversación.
+
+${userMood && moodContext[userMood] ? `CONTEXTO EMOCIONAL: ${moodContext[userMood]}` : ''}
+
+REGLAS IMPORTANTES:
+- Responde en español, de forma natural y fluida
+- Mantén respuestas de 3-5 oraciones máximo (no párrafos largos)
+- Si detectas señales de crisis (autolesión, suicidio, abuso), responde con empatía y sugiere buscar ayuda profesional inmediata
+- Nunca diagnostiques ni des consejos médicos
+- Usa el nombre "${userName || 'amigo/a'}" ocasionalmente para personalizar
+- Termina con algo que invite a continuar la conversación (pregunta o reflexión abierta)
+- NO uses asteriscos, negritas ni formato markdown en tus respuestas`;
 
   const chatHistory = messages.map(m => ({
     role: m.role === 'user' ? 'user' : 'model',
@@ -209,27 +241,180 @@ El usuario se llama ${userName || 'amigo/a'}.`;
   }));
 
   try {
+    console.log('[Chat] Using Gemini API');
     const chat = textModel.startChat({
       history: chatHistory.slice(0, -1),
       generationConfig: {
-        maxOutputTokens: 500,
-        temperature: 0.7
+        maxOutputTokens: 400,
+        temperature: 0.85
       }
     });
 
     const lastMessage = messages[messages.length - 1].content;
-    const result = await chat.sendMessage(systemPrompt + '\n\nUsuario: ' + lastMessage);
+    const result = await chat.sendMessage(systemPrompt + '\n\nMensaje del usuario: ' + lastMessage);
     const response = await result.response;
 
-    return response.text();
+    // Clean any markdown formatting that might slip through
+    let text = response.text();
+    text = text.replace(/\*\*/g, '').replace(/\*/g, '').replace(/^#+\s*/gm, '');
+
+    return text;
   } catch (error) {
-    console.error('Error in chat:', error);
-    throw new Error('Failed to process chat message');
+    console.error('[Chat] Gemini failed:', error.message);
+    // Return a fallback response when all APIs are unavailable
+    const fallbackResponses = {
+      happy: `¡Qué bueno saber que te sientes bien, ${userName || 'amigo/a'}! Esos momentos de bienestar son valiosos. ¿Qué crees que ha contribuido a que te sientas así hoy? A veces identificar esas pequeñas cosas nos ayuda a cultivar más momentos como este.`,
+      sad: `Gracias por compartir cómo te sientes, ${userName || 'amigo/a'}. No es fácil expresar cuando estamos pasando por un momento difícil, y eso ya es un paso importante. ¿Hay algo específico que te gustaría explorar o simplemente necesitas que te escuche?`,
+      anxious: `Entiendo que la ansiedad puede ser abrumadora, ${userName || 'amigo/a'}. Respira profundo, estás en un lugar seguro ahora mismo. ¿Qué es lo que más te preocupa en este momento? A veces ponerlo en palabras ayuda a verlo con más claridad.`,
+      stressed: `El estrés puede hacernos sentir que todo es urgente, ${userName || 'amigo/a'}. Pero recuerda: no tienes que resolver todo ahora mismo. ¿Cuál es la cosa más importante que necesitas atender hoy? Enfoquémonos en eso primero.`,
+      frustrated: `La frustración es una señal de que algo te importa, ${userName || 'amigo/a'}. Esa energía puede transformarse en acción. ¿Qué es lo que te está frustrando? Cuéntame más para ver cómo podemos darle la vuelta.`,
+      neutral: `Hola ${userName || 'amigo/a'}, me alegra que estés aquí. Estoy disponible para escucharte y acompañarte en lo que necesites. ¿Cómo ha sido tu día? ¿Hay algo en particular de lo que te gustaría hablar?`
+    };
+
+    return fallbackResponses[userMood] || fallbackResponses.neutral;
   }
 }
 
+// Fallback tips when API is unavailable or rate limited
+const FALLBACK_TIPS = {
+  neutral: {
+    cards: [
+      {
+        title: "Técnica Pomodoro",
+        category: "Productividad",
+        content: "Trabaja en bloques de 25 minutos con descansos de 5 minutos. Esta técnica mejora la concentración y reduce la fatiga mental.",
+        actionTip: "Configura un timer de 25 minutos y enfócate en una sola tarea."
+      },
+      {
+        title: "Respiración consciente",
+        category: "Mindfulness",
+        content: "Tomar pausas para respirar profundamente activa el sistema nervioso parasimpático, reduciendo el estrés y mejorando la claridad mental.",
+        actionTip: "Haz 5 respiraciones profundas ahora mismo: inhala 4 segundos, mantén 4, exhala 4."
+      },
+      {
+        title: "Gratitud diaria",
+        category: "Hábitos",
+        content: "Escribir 3 cosas por las que estás agradecido cada día mejora el bienestar emocional y la perspectiva de vida.",
+        actionTip: "Piensa en 3 cosas buenas que te pasaron hoy, por pequeñas que sean."
+      }
+    ]
+  },
+  happy: {
+    cards: [
+      {
+        title: "Capitaliza tu energía",
+        category: "Productividad",
+        content: "Cuando te sientes bien, es el momento perfecto para abordar tareas desafiantes o creativas que requieren más energía mental.",
+        actionTip: "Elige esa tarea que has estado posponiendo y hazla ahora."
+      },
+      {
+        title: "Comparte tu alegría",
+        category: "Filosofía",
+        content: "La psicología Adleriana nos recuerda que la conexión social es fundamental. Compartir momentos positivos fortalece los vínculos.",
+        actionTip: "Envía un mensaje a alguien que aprecias para compartir cómo te sientes."
+      },
+      {
+        title: "Ancla este momento",
+        category: "Mindfulness",
+        content: "Crear anclas mentales de momentos positivos te ayuda a acceder a esa energía cuando la necesites en el futuro.",
+        actionTip: "Cierra los ojos y memoriza cómo se siente este momento de bienestar."
+      }
+    ]
+  },
+  sad: {
+    cards: [
+      {
+        title: "Movimiento suave",
+        category: "Hábitos",
+        content: "El ejercicio ligero libera endorfinas naturales. No necesitas una rutina intensa, solo moverte un poco puede cambiar tu estado.",
+        actionTip: "Camina 10 minutos o haz algunos estiramientos suaves."
+      },
+      {
+        title: "Autocompasión",
+        category: "Mindfulness",
+        content: "Está bien no estar bien. Tratarte con la misma amabilidad que tratarías a un amigo es el primer paso hacia sentirte mejor.",
+        actionTip: "Pon tu mano en el corazón y di: 'Este momento es difícil, pero pasará'."
+      },
+      {
+        title: "Pequeños logros",
+        category: "Productividad",
+        content: "Completar tareas pequeñas genera dopamina y sensación de logro, lo cual puede mejorar gradualmente tu estado de ánimo.",
+        actionTip: "Elige una tarea muy pequeña y complétala: ordenar algo, enviar un mensaje pendiente."
+      }
+    ]
+  },
+  anxious: {
+    cards: [
+      {
+        title: "Técnica 5-4-3-2-1",
+        category: "Mindfulness",
+        content: "Esta técnica de grounding te ayuda a volver al presente: identifica 5 cosas que ves, 4 que tocas, 3 que oyes, 2 que hueles, 1 que saboreas.",
+        actionTip: "Practica esta técnica ahora mismo, tomándote tu tiempo con cada sentido."
+      },
+      {
+        title: "Escribe tus preocupaciones",
+        category: "Hábitos",
+        content: "Externalizar los pensamientos ansiosos en papel reduce su poder sobre ti y te permite verlos con más objetividad.",
+        actionTip: "Escribe lo que te preocupa y pregúntate: ¿Qué puedo controlar de esto?"
+      },
+      {
+        title: "Límites de información",
+        category: "Filosofía",
+        content: "El exceso de información puede alimentar la ansiedad. Establecer límites con noticias y redes sociales protege tu paz mental.",
+        actionTip: "Considera tomar un descanso de 30 minutos de tu teléfono."
+      }
+    ]
+  },
+  stressed: {
+    cards: [
+      {
+        title: "Priorización radical",
+        category: "Productividad",
+        content: "Cuando todo parece urgente, nada lo es realmente. Identifica las 1-3 cosas que realmente importan hoy y enfócate solo en esas.",
+        actionTip: "Escribe las 3 cosas más importantes para hoy. Tacha todo lo demás."
+      },
+      {
+        title: "Pausa estratégica",
+        category: "Mindfulness",
+        content: "Paradójicamente, detenerte cuando estás estresado te hace más productivo. Un descanso de 10 minutos puede resetear tu mente.",
+        actionTip: "Aléjate de lo que estás haciendo por 10 minutos. Sal, respira, estira."
+      },
+      {
+        title: "Perspectiva temporal",
+        category: "Filosofía",
+        content: "Los estoicos preguntaban: '¿Importará esto en 5 años?' La mayoría de nuestros estreses actuales son temporales.",
+        actionTip: "Pregúntate: ¿Qué tan importante será esto la próxima semana?"
+      }
+    ]
+  },
+  frustrated: {
+    cards: [
+      {
+        title: "Canaliza la energía",
+        category: "Hábitos",
+        content: "La frustración es energía que puede redirigirse. El ejercicio físico o actividades manuales pueden transformar esa tensión en algo productivo.",
+        actionTip: "Haz 20 sentadillas o sal a caminar rápido por 5 minutos."
+      },
+      {
+        title: "Reformula el obstáculo",
+        category: "Filosofía",
+        content: "Marco Aurelio decía: 'El obstáculo es el camino'. Cada frustración contiene una lección o una oportunidad de crecimiento.",
+        actionTip: "Pregúntate: ¿Qué puedo aprender de esta situación?"
+      },
+      {
+        title: "Comunicación asertiva",
+        category: "Productividad",
+        content: "Si la frustración involucra a otros, expresar tus necesidades de forma clara y respetuosa es más efectivo que guardarlo.",
+        actionTip: "Usa la fórmula: 'Cuando [situación], me siento [emoción], necesito [petición]'."
+      }
+    ]
+  }
+};
+
 async function generateWellnessTips(mood) {
-  const prompt = `Genera 3 tarjetas de bienestar y productividad personalizadas para alguien que se siente: ${mood || 'neutral'}.
+  const normalizedMood = mood?.toLowerCase() || 'neutral';
+
+  const prompt = `Genera 3 tarjetas de bienestar y productividad personalizadas para alguien que se siente: ${normalizedMood}.
 
 Incluye temas como:
 - Técnicas de productividad (Pomodoro, GTD, etc.)
@@ -260,8 +445,9 @@ Responde SOLO con el JSON, sin texto adicional.`;
 
     return JSON.parse(text);
   } catch (error) {
-    console.error('Error generating tips:', error);
-    throw new Error('Failed to generate wellness tips');
+    console.error('Error generating tips, using fallback:', error.message);
+    // Return fallback tips based on mood
+    return FALLBACK_TIPS[normalizedMood] || FALLBACK_TIPS.neutral;
   }
 }
 

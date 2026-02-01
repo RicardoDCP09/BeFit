@@ -1,22 +1,34 @@
-import React, { useEffect, useRef, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
-} from 'react-native';
-import { FontAwesome } from '@expo/vector-icons';
-import Colors from '@/constants/Colors';
+import { BreathingExercise } from '@/components/BreathingExercise';
+import { MoodSelector } from '@/components/MoodSelector';
+import { QuickReplies } from '@/components/QuickReplies';
+import { TypingIndicator } from '@/components/TypingIndicator';
 import { useColorScheme } from '@/components/useColorScheme';
+import Colors from '@/constants/Colors';
 import { useMindStore } from '@/store/mindStore';
 import { WellnessCard } from '@/types';
+import { FontAwesome } from '@expo/vector-icons';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
 type TabType = 'chat' | 'wellness';
+
+// Warm colors for Mind tab
+const MIND_COLORS = {
+  warmPrimary: '#FF8A65', // Warm orange
+  warmSecondary: '#4DB6AC', // Teal for contrast
+  warmBackground: '#FFF8F5', // Very light warm
+  warmCard: '#FFF0EB', // Light peachy
+};
 
 export default function MindScreen() {
   const colorScheme = useColorScheme() ?? 'light';
@@ -25,16 +37,34 @@ export default function MindScreen() {
   const {
     messages,
     wellnessCards,
+    quickReplies,
+    currentMood,
     isSending,
     isLoadingTips,
     loadTodayChat,
     sendMessage,
     loadWellnessTips,
+    setMood,
   } = useMindStore();
 
   const [activeTab, setActiveTab] = useState<TabType>('chat');
   const [inputText, setInputText] = useState('');
+  const [showBreathing, setShowBreathing] = useState(false);
+  const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
+
+  // Show mood selector only for new conversations (no messages today)
+  const showMoodSelector = messages.length === 0 && !currentMood && !selectedMood;
+
+  // Warm colors based on theme
+  const mindColors = colorScheme === 'light'
+    ? MIND_COLORS
+    : {
+      warmPrimary: '#FF8A65',
+      warmSecondary: '#4DB6AC',
+      warmBackground: colors.background,
+      warmCard: colors.card,
+    };
 
   useEffect(() => {
     loadTodayChat();
@@ -54,7 +84,17 @@ export default function MindScreen() {
 
     const message = inputText.trim();
     setInputText('');
-    await sendMessage(message);
+    // Pass mood with first message if selected
+    await sendMessage(message, selectedMood || undefined);
+  };
+
+  const handleMoodSelect = (mood: string) => {
+    setSelectedMood(mood);
+    setMood(mood);
+  };
+
+  const handleQuickReply = (reply: string) => {
+    setInputText(reply);
   };
 
   const renderChat = () => (
@@ -64,27 +104,28 @@ export default function MindScreen() {
         style={styles.messagesContainer}
         contentContainerStyle={styles.messagesContent}
       >
-        {messages.length === 0 ? (
+        {showMoodSelector ? (
+          <MoodSelector onSelect={handleMoodSelect} colors={colors} />
+        ) : messages.length === 0 ? (
           <View style={styles.welcomeMessage}>
-            <View style={[styles.avatarLarge, { backgroundColor: colors.secondary + '20' }]}>
-              <FontAwesome name="leaf" size={32} color={colors.secondary} />
+            <View style={[styles.avatarLarge, { backgroundColor: mindColors.warmPrimary + '20' }]}>
+              <Text style={{ fontSize: 32 }}>🌿</Text>
             </View>
             <Text style={[styles.welcomeTitle, { color: colors.text }]}>
-              Hola, soy Mente
+              ¡Hola! ¿En qué puedo ayudarte?
             </Text>
             <Text style={[styles.welcomeSubtitle, { color: colors.textSecondary }]}>
-              Tu compañero de bienestar mental. Estoy aquí para escucharte y ayudarte
-              a reflexionar. ¿Cómo te sientes hoy?
+              Cuéntame lo que tengas en mente. Estoy aquí para escucharte.
             </Text>
             <View style={styles.suggestedPrompts}>
               {[
                 'Me siento estresado últimamente',
-                'Quiero mejorar mi productividad',
-                'Necesito motivación',
+                'Quiero hablar de algo que me preocupa',
+                'Necesito un consejo',
               ].map((prompt, index) => (
                 <TouchableOpacity
                   key={index}
-                  style={[styles.promptChip, { backgroundColor: colors.card }]}
+                  style={[styles.promptChip, { backgroundColor: mindColors.warmCard }]}
                   onPress={() => setInputText(prompt)}
                 >
                   <Text style={[styles.promptText, { color: colors.text }]}>
@@ -101,13 +142,13 @@ export default function MindScreen() {
               style={[
                 styles.messageBubble,
                 message.role === 'user'
-                  ? [styles.userBubble, { backgroundColor: colors.primary }]
-                  : [styles.assistantBubble, { backgroundColor: colors.card }],
+                  ? [styles.userBubble, { backgroundColor: mindColors.warmPrimary }]
+                  : [styles.assistantBubble, { backgroundColor: mindColors.warmCard }],
               ]}
             >
               {message.role === 'assistant' && (
-                <View style={[styles.avatarSmall, { backgroundColor: colors.secondary + '20' }]}>
-                  <FontAwesome name="leaf" size={14} color={colors.secondary} />
+                <View style={[styles.avatarSmall, { backgroundColor: mindColors.warmPrimary + '20' }]}>
+                  <Text style={{ fontSize: 14 }}>🌿</Text>
                 </View>
               )}
               <Text
@@ -122,16 +163,31 @@ export default function MindScreen() {
           ))
         )}
         {isSending && (
-          <View style={[styles.messageBubble, styles.assistantBubble, { backgroundColor: colors.card }]}>
-            <View style={[styles.avatarSmall, { backgroundColor: colors.secondary + '20' }]}>
-              <FontAwesome name="leaf" size={14} color={colors.secondary} />
+          <View style={[styles.messageBubble, styles.assistantBubble, { backgroundColor: mindColors.warmCard }]}>
+            <View style={[styles.avatarSmall, { backgroundColor: mindColors.warmPrimary + '20' }]}>
+              <Text style={{ fontSize: 14 }}>🌿</Text>
             </View>
-            <ActivityIndicator size="small" color={colors.secondary} />
+            <TypingIndicator color={mindColors.warmPrimary} />
           </View>
         )}
       </ScrollView>
 
+      {/* Quick Replies */}
+      {quickReplies.length > 0 && !isSending && (
+        <QuickReplies
+          replies={quickReplies}
+          onSelect={handleQuickReply}
+          colors={{ ...colors, primary: mindColors.warmPrimary }}
+        />
+      )}
+
       <View style={[styles.inputContainer, { backgroundColor: colors.card }]}>
+        <TouchableOpacity
+          style={[styles.breathingButton, { backgroundColor: mindColors.warmSecondary + '20' }]}
+          onPress={() => setShowBreathing(true)}
+        >
+          <Text style={{ fontSize: 18 }}>🧘</Text>
+        </TouchableOpacity>
         <TextInput
           style={[styles.input, { color: colors.text }]}
           placeholder="Escribe tu mensaje..."
@@ -144,7 +200,7 @@ export default function MindScreen() {
         <TouchableOpacity
           style={[
             styles.sendButton,
-            { backgroundColor: inputText.trim() ? colors.primary : colors.border },
+            { backgroundColor: inputText.trim() ? mindColors.warmPrimary : colors.border },
           ]}
           onPress={handleSend}
           disabled={!inputText.trim() || isSending}
@@ -156,6 +212,13 @@ export default function MindScreen() {
           />
         </TouchableOpacity>
       </View>
+
+      {/* Breathing Exercise Modal */}
+      <BreathingExercise
+        visible={showBreathing}
+        onClose={() => setShowBreathing(false)}
+        colors={colors}
+      />
     </View>
   );
 
@@ -377,6 +440,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
+    flexShrink: 1,
   },
   avatarSmall: {
     width: 28,
@@ -388,7 +452,8 @@ const styles = StyleSheet.create({
   messageText: {
     fontSize: 15,
     lineHeight: 22,
-    flex: 1,
+    flexShrink: 1,
+    flexWrap: 'wrap',
   },
   inputContainer: {
     flexDirection: 'row',
@@ -406,6 +471,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   sendButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  breathingButton: {
     width: 44,
     height: 44,
     borderRadius: 22,

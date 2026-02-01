@@ -175,14 +175,14 @@ export const kitchenApi = {
 
 // Mind API
 export const mindApi = {
-  sendMessage: (message: string) =>
-    request<{ response: string; sessionId: number }>('/mind/chat', {
+  sendMessage: (message: string, mood?: string) =>
+    request<{ response: string; sessionId: number; quickReplies?: string[] }>('/mind/chat', {
       method: 'POST',
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ message, mood }),
     }),
 
   getTodayChat: () =>
-    request<{ messages: any[]; sessionId: number | null }>('/mind/chat/today'),
+    request<{ messages: any[]; sessionId: number | null; mood?: string }>('/mind/chat/today'),
 
   getChatHistory: () => request<{ sessions: any[] }>('/mind/chat/history'),
 

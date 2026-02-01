@@ -6,15 +6,16 @@ interface MindState {
   messages: ChatMessage[];
   wellnessCards: WellnessCard[];
   currentMood: string | null;
+  quickReplies: string[];
   isSending: boolean;
   isLoadingTips: boolean;
   error: string | null;
 
   // Actions
   loadTodayChat: () => Promise<void>;
-  sendMessage: (message: string) => Promise<void>;
+  sendMessage: (message: string, mood?: string) => Promise<void>;
   loadWellnessTips: (mood?: string) => Promise<void>;
-  updateMood: (mood: string) => Promise<void>;
+  setMood: (mood: string) => void;
   clearMessages: () => void;
   clearError: () => void;
 }
@@ -23,6 +24,7 @@ export const useMindStore = create<MindState>((set, get) => ({
   messages: [],
   wellnessCards: [],
   currentMood: null,
+  quickReplies: [],
   isSending: false,
   isLoadingTips: false,
   error: null,
@@ -30,15 +32,18 @@ export const useMindStore = create<MindState>((set, get) => ({
   loadTodayChat: async () => {
     try {
       const response = await mindApi.getTodayChat();
-      set({ messages: response.messages || [] });
+      set({
+        messages: response.messages || [],
+        currentMood: response.mood || null,
+      });
     } catch (error: any) {
       console.error('Load chat error:', error);
     }
   },
 
-  sendMessage: async (message: string) => {
+  sendMessage: async (message: string, mood?: string) => {
     try {
-      set({ isSending: true, error: null });
+      set({ isSending: true, error: null, quickReplies: [] });
 
       // Add user message immediately
       const userMessage: ChatMessage = {
@@ -51,7 +56,8 @@ export const useMindStore = create<MindState>((set, get) => ({
         messages: [...state.messages, userMessage],
       }));
 
-      const response = await mindApi.sendMessage(message);
+      // Send with mood if provided (first message of session)
+      const response = await mindApi.sendMessage(message, mood || get().currentMood || undefined);
 
       // Add AI response
       const aiMessage: ChatMessage = {
@@ -62,6 +68,7 @@ export const useMindStore = create<MindState>((set, get) => ({
 
       set((state) => ({
         messages: [...state.messages, aiMessage],
+        quickReplies: response.quickReplies || [],
         isSending: false,
       }));
     } catch (error: any) {
@@ -92,18 +99,10 @@ export const useMindStore = create<MindState>((set, get) => ({
     }
   },
 
-  updateMood: async (mood: string) => {
-    try {
-      await mindApi.updateMood(mood);
-      set({ currentMood: mood });
-
-      // Reload tips based on new mood
-      get().loadWellnessTips(mood);
-    } catch (error: any) {
-      set({ error: error.message || 'Error al actualizar estado de ánimo' });
-    }
+  setMood: (mood: string) => {
+    set({ currentMood: mood });
   },
 
-  clearMessages: () => set({ messages: [] }),
+  clearMessages: () => set({ messages: [], quickReplies: [], currentMood: null }),
   clearError: () => set({ error: null }),
 }));
