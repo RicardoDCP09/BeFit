@@ -26,7 +26,7 @@ export default {
         backgroundColor: "#000000"
       },
       permissions: ["android.permission.CAMERA"],
-      edgeToEdgeEnabled: true,
+      edgeToEdgeEnabled: false,
       package: "com.befit.app"
     },
     web: {
