@@ -9,9 +9,9 @@ export default {
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
     splash: {
-      image: "./assets/images/Befit_Fondo_Blanco.png",
+      image: "./assets/images/BetFit-FavIcon-Negro.png",
       resizeMode: "contain",
-      backgroundColor: "#FF9800"
+      backgroundColor: "#000000"
     },
     ios: {
       supportsTablet: true,
@@ -22,8 +22,8 @@ export default {
     },
     android: {
       adaptiveIcon: {
-        foregroundImage: "./assets/images/Befit_Sin_Fondo.png",
-        backgroundColor: "#FF9800"
+        foregroundImage: "./assets/images/BetFit-FavIcon-Negro.png",
+        backgroundColor: "#000000"
       },
       permissions: ["android.permission.CAMERA"],
       edgeToEdgeEnabled: true,
@@ -57,7 +57,7 @@ export default {
     extra: {
       apiUrl: process.env.EXPO_PUBLIC_API_URL || null,
       eas: {
-        projectId: "your-project-id"
+        projectId: "03b6b92a-cabb-4712-b67b-b076bf5d896b"
       }
     }
   }

@@ -1,6 +1,9 @@
 import { Platform } from 'react-native';
 import { storage } from './storage';
 
+// Production API URL
+const PRODUCTION_API_URL = 'https://befit-g0zx.onrender.com/api';
+
 // Get API URL from environment or use defaults
 const getApiUrl = (): string => {
   // Check for production environment variable (must be a non-empty string)
@@ -9,11 +12,20 @@ const getApiUrl = (): string => {
     return envUrl;
   }
 
-  // Development defaults based on platform
-  if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:3001/api';
+  // Use production URL for native builds, local for web development
+  if (__DEV__) {
+    // Development mode
+    if (Platform.OS === 'web') {
+      return 'http://localhost:3001/api';
+    }
+    if (Platform.OS === 'android') {
+      return 'http://10.0.2.2:3001/api';
+    }
+    return 'http://localhost:3001/api';
   }
-  return 'http://localhost:3001/api';
+
+  // Production build - use Render backend
+  return PRODUCTION_API_URL;
 };
 
 const API_URL = getApiUrl();
