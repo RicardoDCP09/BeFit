@@ -3,12 +3,12 @@ import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { useGymStore } from '@/store/gymStore';
 import { useWorkoutSessionStore } from '@/store/workoutSessionStore';
+import { showAlert } from '@/utils/alert';
 import { FontAwesome } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -58,12 +58,27 @@ export default function GymScreen() {
     }
   }, [currentRoutine]);
 
-  const handleGenerateRoutine = async () => {
-    try {
-      await generateRoutine();
-      Alert.alert('¡Éxito!', 'Tu rutina personalizada ha sido generada');
-    } catch (err: any) {
-      Alert.alert('Error', err.message || 'No se pudo generar la rutina');
+  const handleGenerateRoutine = async (isRegenerate = false) => {
+    const doGenerate = async () => {
+      try {
+        await generateRoutine();
+        showSuccess('¡Éxito!', 'Tu rutina personalizada ha sido generada');
+      } catch (err: any) {
+        showError('Error', err.message || 'No se pudo generar la rutina');
+      }
+    };
+
+    if (isRegenerate && currentRoutine) {
+      showAlert(
+        'Regenerar Rutina',
+        '¿Estás seguro? Se reemplazará tu rutina actual y perderás el progreso.',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Regenerar', style: 'destructive', onPress: doGenerate },
+        ]
+      );
+    } else {
+      doGenerate();
     }
   };
 
@@ -85,7 +100,7 @@ export default function GymScreen() {
         await startSession(currentRoutine.id, selectedDayPlan);
         router.push('/workout-session');
       } catch (err: any) {
-        Alert.alert('Error', err.message || 'No se pudo iniciar la sesión');
+        showError('Error', err.message || 'No se pudo iniciar la sesión');
       }
     }
   };
@@ -115,7 +130,7 @@ export default function GymScreen() {
           </Text>
           <TouchableOpacity
             style={[styles.generateButton, { backgroundColor: colors.primary }]}
-            onPress={handleGenerateRoutine}
+            onPress={() => handleGenerateRoutine(false)}
             disabled={isGenerating}
           >
             {isGenerating ? (
@@ -317,7 +332,7 @@ export default function GymScreen() {
         {/* Regenerate Button */}
         <TouchableOpacity
           style={[styles.regenerateButton, { borderColor: colors.border }]}
-          onPress={handleGenerateRoutine}
+          onPress={() => handleGenerateRoutine(true)}
           disabled={isGenerating}
         >
           {isGenerating ? (

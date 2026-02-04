@@ -112,7 +112,13 @@ Responde SOLO con el JSON, sin texto adicional.`;
     return JSON.parse(text);
   } catch (error) {
     console.error('Error analyzing ingredients:', error);
-    throw new Error('Failed to analyze ingredients');
+
+    // Handle quota exceeded error
+    if (error.status === 429 || error.message?.includes('429') || error.message?.includes('quota')) {
+      throw new Error('Límite de uso alcanzado. Por favor espera unos minutos e intenta de nuevo.');
+    }
+
+    throw new Error('No se pudo analizar la imagen. Intenta de nuevo más tarde.');
   }
 }
 
@@ -166,6 +172,7 @@ Genera una receta en formato JSON:
 }
 
 La receta debe ser práctica, deliciosa y alineada con el objetivo del usuario.
+IMPORTANTE: No uses asteriscos, negritas, markdown ni formato especial en ningún texto. Escribe todo en texto plano natural.
 Responde SOLO con el JSON, sin texto adicional.`;
 
   try {
@@ -175,10 +182,30 @@ Responde SOLO con el JSON, sin texto adicional.`;
 
     text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
-    return JSON.parse(text);
+    const recipe = JSON.parse(text);
+
+    // Clean markdown from all string fields
+    const cleanMarkdown = (str) => {
+      if (typeof str !== 'string') return str;
+      return str.replace(/\*\*/g, '').replace(/\*/g, '').replace(/^#+\s*/gm, '').replace(/_([^_]+)_/g, '$1');
+    };
+
+    recipe.name = cleanMarkdown(recipe.name);
+    recipe.description = cleanMarkdown(recipe.description);
+    recipe.explanation = cleanMarkdown(recipe.explanation);
+    recipe.instructions = recipe.instructions?.map(cleanMarkdown) || [];
+    recipe.tips = recipe.tips?.map(cleanMarkdown) || [];
+
+    return recipe;
   } catch (error) {
     console.error('Error generating recipe:', error);
-    throw new Error('Failed to generate recipe');
+
+    // Handle quota exceeded error
+    if (error.status === 429 || error.message?.includes('429') || error.message?.includes('quota')) {
+      throw new Error('Límite de uso alcanzado. Por favor espera unos minutos e intenta de nuevo.');
+    }
+
+    throw new Error('No se pudo generar la receta. Intenta de nuevo más tarde.');
   }
 }
 
@@ -235,23 +262,28 @@ REGLAS IMPORTANTES:
 - Termina con algo que invite a continuar la conversación (pregunta o reflexión abierta)
 - NO uses asteriscos, negritas ni formato markdown en tus respuestas`;
 
-  const chatHistory = messages.map(m => ({
+  // Build conversation history for context (exclude last message which we'll send)
+  const chatHistory = messages.slice(0, -1).map(m => ({
     role: m.role === 'user' ? 'user' : 'model',
     parts: [{ text: m.content }]
   }));
 
   try {
-    console.log('[Chat] Using Gemini API');
+    console.log('[Chat] Using Gemini API with', messages.length, 'messages in history');
+
+    // Use systemInstruction for proper context handling
     const chat = textModel.startChat({
-      history: chatHistory.slice(0, -1),
+      systemInstruction: systemPrompt,
+      history: chatHistory,
       generationConfig: {
         maxOutputTokens: 400,
         temperature: 0.85
       }
     });
 
+    // Send only the user's message, not concatenated with system prompt
     const lastMessage = messages[messages.length - 1].content;
-    const result = await chat.sendMessage(systemPrompt + '\n\nMensaje del usuario: ' + lastMessage);
+    const result = await chat.sendMessage(lastMessage);
     const response = await result.response;
 
     // Clean any markdown formatting that might slip through

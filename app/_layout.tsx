@@ -6,6 +6,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useMemo, useState } from 'react';
 import 'react-native-reanimated';
 
+import CustomAlert, { setAlertCallback } from '@/components/CustomAlert';
 import LoadingScreen from '@/components/LoadingScreen';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
@@ -50,6 +51,13 @@ export default function RootLayout() {
   return <RootLayoutNav />;
 }
 
+interface AlertConfig {
+  title: string;
+  message: string;
+  buttons?: { text: string; style?: 'default' | 'cancel' | 'destructive'; onPress?: () => void }[];
+  type?: 'info' | 'success' | 'warning' | 'error';
+}
+
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme];
@@ -57,6 +65,17 @@ function RootLayoutNav() {
   const segments = useSegments();
 
   const { isAuthenticated, isLoading, user } = useAuthStore();
+
+  // Custom Alert State
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertConfig, setAlertConfig] = useState<AlertConfig | null>(null);
+
+  useEffect(() => {
+    setAlertCallback((config: AlertConfig) => {
+      setAlertConfig(config);
+      setAlertVisible(true);
+    });
+  }, []);
 
   // Custom themes with orange primary color
   const customTheme: Theme = useMemo(() => ({
@@ -109,6 +128,11 @@ function RootLayoutNav() {
         <Stack.Screen name="onboarding" />
         <Stack.Screen name="(tabs)" />
       </Stack>
+      <CustomAlert
+        visible={alertVisible}
+        config={alertConfig}
+        onClose={() => setAlertVisible(false)}
+      />
     </ThemeProvider>
   );
 }

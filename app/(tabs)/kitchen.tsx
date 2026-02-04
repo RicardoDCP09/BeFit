@@ -1,19 +1,20 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Image,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
+import { useColorScheme } from '@/components/useColorScheme';
+import Colors from '@/constants/Colors';
+import { useKitchenStore } from '@/store/kitchenStore';
+import { showAlert, showError } from '@/utils/alert';
 import { FontAwesome } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useKitchenStore } from '@/store/kitchenStore';
+import React, { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
+} from 'react-native';
+
+type TabType = 'cook' | 'history';
 
 export default function KitchenScreen() {
   const colorScheme = useColorScheme() ?? 'light';
@@ -23,20 +24,34 @@ export default function KitchenScreen() {
     ingredients,
     summary,
     currentRecipe,
+    recipeHistory,
     isAnalyzing,
     isGeneratingRecipe,
+    isLoadingHistory,
     smartCook,
     generateRecipe,
+    loadHistory,
+    toggleFavorite,
+    deleteRecipe,
+    viewRecipe,
     clearIngredients,
     clearRecipe,
   } = useKitchenStore();
 
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<TabType>('cook');
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === 'history') {
+      loadHistory(showFavoritesOnly);
+    }
+  }, [activeTab, showFavoritesOnly]);
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permiso requerido', 'Necesitamos acceso a la cámara para escanear tu nevera');
+      showAlert('Permiso requerido', 'Necesitamos acceso a la cámara para escanear tu nevera');
       return;
     }
 
@@ -53,7 +68,7 @@ export default function KitchenScreen() {
       try {
         await smartCook(result.assets[0].base64);
       } catch (err: any) {
-        Alert.alert('Error', err.message || 'No se pudo analizar la imagen');
+        showError('Error', err.message || 'No se pudo analizar la imagen');
       }
     }
   };
@@ -61,7 +76,7 @@ export default function KitchenScreen() {
   const pickFromGallery = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permiso requerido', 'Necesitamos acceso a la galería');
+      showAlert('Permiso requerido', 'Necesitamos acceso a la galería');
       return;
     }
 
@@ -78,15 +93,27 @@ export default function KitchenScreen() {
       try {
         await smartCook(result.assets[0].base64);
       } catch (err: any) {
-        Alert.alert('Error', err.message || 'No se pudo analizar la imagen');
+        showError('Error', err.message || 'No se pudo analizar la imagen');
       }
     }
   };
 
   const handleReset = () => {
-    setSelectedImage(null);
-    clearIngredients();
-    clearRecipe();
+    showAlert(
+      'Nueva Receta',
+      '¿Quieres empezar de nuevo? Se perderá la receta actual.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Sí, empezar de nuevo',
+          onPress: () => {
+            setSelectedImage(null);
+            clearIngredients();
+            clearRecipe();
+          },
+        },
+      ]
+    );
   };
 
   const isLoading = isAnalyzing || isGeneratingRecipe;
@@ -238,63 +265,210 @@ export default function KitchenScreen() {
     );
   }
 
-  return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={styles.content}>
-        <View style={[styles.emptyState, { backgroundColor: colors.card }]}>
-          <View style={[styles.iconContainer, { backgroundColor: colors.accent + '20' }]}>
-            <FontAwesome name="cutlery" size={48} color={colors.accent} />
-          </View>
-          <Text style={[styles.emptyTitle, { color: colors.text }]}>
-            Cocina Inteligente
-          </Text>
-          <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
-            Toma una foto de tu nevera o despensa y la IA generará una receta
-            personalizada con los ingredientes disponibles
-          </Text>
-
-          <View style={styles.buttonGroup}>
-            <TouchableOpacity
-              style={[styles.primaryButton, { backgroundColor: colors.primary }]}
-              onPress={pickImage}
-            >
-              <FontAwesome name="camera" size={20} color="#fff" />
-              <Text style={styles.primaryButtonText}>Tomar Foto</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.secondaryButton, { borderColor: colors.border }]}
-              onPress={pickFromGallery}
-            >
-              <FontAwesome name="image" size={20} color={colors.primary} />
-              <Text style={[styles.secondaryButtonText, { color: colors.primary }]}>
-                Galería
-              </Text>
-            </TouchableOpacity>
-          </View>
+  const renderCookTab = () => (
+    <View style={styles.content}>
+      <View style={[styles.emptyState, { backgroundColor: colors.card }]}>
+        <View style={[styles.iconContainer, { backgroundColor: colors.accent + '20' }]}>
+          <FontAwesome name="cutlery" size={48} color={colors.accent} />
         </View>
+        <Text style={[styles.emptyTitle, { color: colors.text }]}>
+          Cocina Inteligente
+        </Text>
+        <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
+          Toma una foto de tu nevera o despensa y la IA generará una receta
+          personalizada con los ingredientes disponibles
+        </Text>
 
-        <View style={styles.features}>
-          <View style={styles.featureItem}>
-            <FontAwesome name="eye" size={20} color={colors.secondary} />
-            <Text style={[styles.featureText, { color: colors.textSecondary }]}>
-              Detecta ingredientes automáticamente
+        <View style={styles.buttonGroup}>
+          <TouchableOpacity
+            style={[styles.primaryButton, { backgroundColor: colors.primary }]}
+            onPress={pickImage}
+          >
+            <FontAwesome name="camera" size={20} color="#fff" />
+            <Text style={styles.primaryButtonText}>Tomar Foto</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.secondaryButton, { borderColor: colors.border }]}
+            onPress={pickFromGallery}
+          >
+            <FontAwesome name="image" size={20} color={colors.primary} />
+            <Text style={[styles.secondaryButtonText, { color: colors.primary }]}>
+              Galería
             </Text>
-          </View>
-          <View style={styles.featureItem}>
-            <FontAwesome name="heart" size={20} color={colors.error} />
-            <Text style={[styles.featureText, { color: colors.textSecondary }]}>
-              Recetas adaptadas a tu perfil
-            </Text>
-          </View>
-          <View style={styles.featureItem}>
-            <FontAwesome name="calculator" size={20} color={colors.accent} />
-            <Text style={[styles.featureText, { color: colors.textSecondary }]}>
-              Información nutricional incluida
-            </Text>
-          </View>
+          </TouchableOpacity>
         </View>
       </View>
+
+      <View style={styles.features}>
+        <View style={styles.featureItem}>
+          <FontAwesome name="eye" size={20} color={colors.secondary} />
+          <Text style={[styles.featureText, { color: colors.textSecondary }]}>
+            Detecta ingredientes automáticamente
+          </Text>
+        </View>
+        <View style={styles.featureItem}>
+          <FontAwesome name="heart" size={20} color={colors.error} />
+          <Text style={[styles.featureText, { color: colors.textSecondary }]}>
+            Recetas adaptadas a tu perfil
+          </Text>
+        </View>
+        <View style={styles.featureItem}>
+          <FontAwesome name="calculator" size={20} color={colors.accent} />
+          <Text style={[styles.featureText, { color: colors.textSecondary }]}>
+            Información nutricional incluida
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+
+  const renderHistoryTab = () => (
+    <ScrollView style={styles.historyContainer} contentContainerStyle={styles.historyContent}>
+      {/* Filter Toggle */}
+      <View style={styles.filterRow}>
+        <TouchableOpacity
+          style={[
+            styles.filterButton,
+            !showFavoritesOnly && { backgroundColor: colors.primary },
+            showFavoritesOnly && { borderColor: colors.border, borderWidth: 1 },
+          ]}
+          onPress={() => setShowFavoritesOnly(false)}
+        >
+          <Text style={[styles.filterText, { color: showFavoritesOnly ? colors.text : '#fff' }]}>
+            Todas
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.filterButton,
+            showFavoritesOnly && { backgroundColor: colors.primary },
+            !showFavoritesOnly && { borderColor: colors.border, borderWidth: 1 },
+          ]}
+          onPress={() => setShowFavoritesOnly(true)}
+        >
+          <FontAwesome name="heart" size={12} color={showFavoritesOnly ? '#fff' : colors.error} />
+          <Text style={[styles.filterText, { color: showFavoritesOnly ? '#fff' : colors.text }]}>
+            Favoritas
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {isLoadingHistory ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : recipeHistory.length === 0 ? (
+        <View style={[styles.emptyHistory, { backgroundColor: colors.card }]}>
+          <FontAwesome name="book" size={48} color={colors.textSecondary} />
+          <Text style={[styles.emptyHistoryText, { color: colors.textSecondary }]}>
+            {showFavoritesOnly ? 'No tienes recetas favoritas' : 'Aún no has generado recetas'}
+          </Text>
+          <TouchableOpacity
+            style={[styles.goToCookButton, { backgroundColor: colors.primary }]}
+            onPress={() => setActiveTab('cook')}
+          >
+            <Text style={styles.goToCookText}>Crear mi primera receta</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        recipeHistory.map((item) => (
+          <TouchableOpacity
+            key={item.id}
+            style={[styles.historyCard, { backgroundColor: colors.card }]}
+            onPress={() => {
+              viewRecipe(item.recipe);
+              setActiveTab('cook');
+            }}
+          >
+            <View style={styles.historyCardHeader}>
+              <Text style={[styles.historyRecipeName, { color: colors.text }]} numberOfLines={1}>
+                {item.recipe.name}
+              </Text>
+              <View style={styles.historyActions}>
+                <TouchableOpacity
+                  onPress={() => toggleFavorite(item.id)}
+                  style={styles.historyActionButton}
+                >
+                  <FontAwesome
+                    name={item.isFavorite ? 'heart' : 'heart-o'}
+                    size={18}
+                    color={item.isFavorite ? colors.error : colors.textSecondary}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    showAlert(
+                      'Eliminar receta',
+                      '¿Estás seguro de que quieres eliminar esta receta?',
+                      [
+                        { text: 'Cancelar', style: 'cancel' },
+                        { text: 'Eliminar', style: 'destructive', onPress: () => deleteRecipe(item.id) },
+                      ]
+                    );
+                  }}
+                  style={styles.historyActionButton}
+                >
+                  <FontAwesome name="trash-o" size={18} color={colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+            </View>
+            <Text style={[styles.historyRecipeDesc, { color: colors.textSecondary }]} numberOfLines={2}>
+              {item.recipe.description}
+            </Text>
+            <View style={styles.historyMeta}>
+              <View style={styles.historyMetaItem}>
+                <FontAwesome name="clock-o" size={12} color={colors.textSecondary} />
+                <Text style={[styles.historyMetaText, { color: colors.textSecondary }]}>
+                  {item.recipe.prepTime}
+                </Text>
+              </View>
+              <View style={styles.historyMetaItem}>
+                <FontAwesome name="fire" size={12} color={colors.primary} />
+                <Text style={[styles.historyMetaText, { color: colors.textSecondary }]}>
+                  {item.recipe.nutrition?.calories || '---'} kcal
+                </Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+        ))
+      )}
+    </ScrollView>
+  );
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Tab Selector */}
+      <View style={[styles.tabSelector, { backgroundColor: colors.card }]}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'cook' && { backgroundColor: colors.primary }]}
+          onPress={() => setActiveTab('cook')}
+        >
+          <FontAwesome
+            name="camera"
+            size={16}
+            color={activeTab === 'cook' ? '#fff' : colors.textSecondary}
+          />
+          <Text style={[styles.tabText, { color: activeTab === 'cook' ? '#fff' : colors.textSecondary }]}>
+            Cocinar
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'history' && { backgroundColor: colors.primary }]}
+          onPress={() => setActiveTab('history')}
+        >
+          <FontAwesome
+            name="book"
+            size={16}
+            color={activeTab === 'history' ? '#fff' : colors.textSecondary}
+          />
+          <Text style={[styles.tabText, { color: activeTab === 'history' ? '#fff' : colors.textSecondary }]}>
+            Mis Recetas
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {activeTab === 'cook' ? renderCookTab() : renderHistoryTab()}
     </View>
   );
 }
@@ -525,5 +699,114 @@ const styles = StyleSheet.create({
   resetButtonText: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  tabSelector: {
+    flexDirection: 'row',
+    margin: 16,
+    padding: 4,
+    borderRadius: 12,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+    gap: 8,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  historyContainer: {
+    flex: 1,
+  },
+  historyContent: {
+    padding: 16,
+    paddingBottom: 32,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+  },
+  filterText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  loadingContainer: {
+    paddingVertical: 48,
+    alignItems: 'center',
+  },
+  emptyHistory: {
+    padding: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+  },
+  emptyHistoryText: {
+    fontSize: 14,
+    marginTop: 16,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  goToCookButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  goToCookText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  historyCard: {
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 12,
+  },
+  historyCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  historyRecipeName: {
+    fontSize: 16,
+    fontWeight: '600',
+    flex: 1,
+  },
+  historyActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  historyActionButton: {
+    padding: 4,
+  },
+  historyRecipeDesc: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  historyMeta: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  historyMetaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  historyMetaText: {
+    fontSize: 12,
   },
 });

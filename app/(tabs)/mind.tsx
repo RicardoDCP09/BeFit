@@ -20,7 +20,7 @@ import {
   View,
 } from 'react-native';
 
-type TabType = 'chat' | 'wellness';
+type TabType = 'chat' | 'wellness' | 'history';
 
 // Warm colors for Mind tab
 const MIND_COLORS = {
@@ -37,13 +37,17 @@ export default function MindScreen() {
   const {
     messages,
     wellnessCards,
+    chatHistory,
     quickReplies,
     currentMood,
     isSending,
     isLoadingTips,
+    isLoadingHistory,
     loadTodayChat,
     sendMessage,
     loadWellnessTips,
+    loadChatHistory,
+    viewPastSession,
     setMood,
   } = useMindStore();
 
@@ -70,6 +74,12 @@ export default function MindScreen() {
     loadTodayChat();
     loadWellnessTips();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'history') {
+      loadChatHistory();
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -222,6 +232,112 @@ export default function MindScreen() {
     </View>
   );
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (date.toDateString() === today.toDateString()) {
+      return 'Hoy';
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return 'Ayer';
+    } else {
+      return date.toLocaleDateString('es-ES', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'short',
+      });
+    }
+  };
+
+  const getMoodEmoji = (mood: string | null) => {
+    const moodEmojis: Record<string, string> = {
+      happy: '😊',
+      neutral: '😐',
+      sad: '😢',
+      anxious: '😰',
+      frustrated: '😤',
+      stressed: '😫',
+    };
+    return mood ? moodEmojis[mood] || '💭' : '💭';
+  };
+
+  const renderHistory = () => (
+    <ScrollView
+      style={styles.historyContainer}
+      contentContainerStyle={styles.historyContent}
+    >
+      <Text style={[styles.historyTitle, { color: colors.text }]}>
+        Conversaciones Pasadas
+      </Text>
+      <Text style={[styles.historySubtitle, { color: colors.textSecondary }]}>
+        Revisa tus sesiones anteriores
+      </Text>
+
+      {(() => {
+        const sessionsWithMessages = chatHistory.filter(
+          (session) => session.messages && session.messages.length > 0
+        );
+
+        if (isLoadingHistory) {
+          return (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+          );
+        }
+
+        if (sessionsWithMessages.length === 0) {
+          return (
+            <View style={[styles.emptyHistory, { backgroundColor: colors.card }]}>
+              <FontAwesome name="comments-o" size={48} color={colors.textSecondary} />
+              <Text style={[styles.emptyHistoryText, { color: colors.textSecondary }]}>
+                Aún no tienes conversaciones guardadas
+              </Text>
+              <TouchableOpacity
+                style={[styles.startChatButton, { backgroundColor: mindColors.warmPrimary }]}
+                onPress={() => setActiveTab('chat')}
+              >
+                <Text style={styles.startChatText}>Iniciar conversación</Text>
+              </TouchableOpacity>
+            </View>
+          );
+        }
+
+        return sessionsWithMessages.map((session) => (
+          <TouchableOpacity
+            key={session.id}
+            style={[styles.historyCard, { backgroundColor: colors.card }]}
+            onPress={() => {
+              viewPastSession(session);
+              setActiveTab('chat');
+            }}
+          >
+            <View style={styles.historyCardHeader}>
+              <Text style={styles.historyMoodEmoji}>{getMoodEmoji(session.mood)}</Text>
+              <View style={styles.historyCardInfo}>
+                <Text style={[styles.historyDate, { color: colors.text }]}>
+                  {formatDate(session.createdAt)}
+                </Text>
+                <Text style={[styles.historyMessageCount, { color: colors.textSecondary }]}>
+                  {session.messages.length} mensajes
+                </Text>
+              </View>
+              <FontAwesome name="chevron-right" size={14} color={colors.textSecondary} />
+            </View>
+            <Text
+              style={[styles.historyPreview, { color: colors.textSecondary }]}
+              numberOfLines={2}
+            >
+              {session.messages[0].content}
+            </Text>
+          </TouchableOpacity>
+        ));
+      })()}
+    </ScrollView>
+  );
+
   const renderWellness = () => (
     <ScrollView
       style={styles.wellnessContainer}
@@ -309,9 +425,32 @@ export default function MindScreen() {
             Bienestar
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.tab,
+            activeTab === 'history' && { backgroundColor: colors.primary },
+          ]}
+          onPress={() => setActiveTab('history')}
+        >
+          <FontAwesome
+            name="history"
+            size={16}
+            color={activeTab === 'history' ? '#fff' : colors.textSecondary}
+          />
+          <Text
+            style={[
+              styles.tabText,
+              { color: activeTab === 'history' ? '#fff' : colors.textSecondary },
+            ]}
+          >
+            Historial
+          </Text>
+        </TouchableOpacity>
       </View>
 
-      {activeTab === 'chat' ? renderChat() : renderWellness()}
+      {activeTab === 'chat' && renderChat()}
+      {activeTab === 'wellness' && renderWellness()}
+      {activeTab === 'history' && renderHistory()}
     </KeyboardAvoidingView>
   );
 }
@@ -563,5 +702,71 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     flex: 1,
+  },
+  historyContainer: {
+    flex: 1,
+  },
+  historyContent: {
+    padding: 16,
+    paddingBottom: 32,
+  },
+  historyTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  historySubtitle: {
+    fontSize: 14,
+    marginBottom: 20,
+  },
+  emptyHistory: {
+    padding: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+  },
+  emptyHistoryText: {
+    fontSize: 14,
+    marginTop: 16,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  startChatButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  startChatText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  historyCard: {
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 12,
+  },
+  historyCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  historyMoodEmoji: {
+    fontSize: 28,
+  },
+  historyCardInfo: {
+    flex: 1,
+  },
+  historyDate: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  historyMessageCount: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  historyPreview: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 12,
   },
 });

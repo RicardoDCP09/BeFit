@@ -16,8 +16,8 @@ interface ThemeState {
 const THEME_STORAGE_KEY = 'befit_theme_mode';
 
 export const useThemeStore = create<ThemeState>((set, get) => ({
-  mode: 'system',
-  isDark: false,
+  mode: 'dark',
+  isDark: true,
   isLoading: true,
 
   loadTheme: async () => {
@@ -26,7 +26,8 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
       if (savedMode && ['light', 'dark', 'system'].includes(savedMode)) {
         set({ mode: savedMode as ThemeMode, isLoading: false });
       } else {
-        set({ isLoading: false });
+        // No saved preference, default to dark mode
+        set({ mode: 'dark', isDark: true, isLoading: false });
       }
     } catch (error) {
       console.error('Error loading theme:', error);

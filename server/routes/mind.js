@@ -35,7 +35,7 @@ router.post('/chat', authMiddleware, async (req, res) => {
     }
 
     // Add user message to history
-    const messages = chatSession.messages || [];
+    const messages = [...(chatSession.messages || [])];
     messages.push({ role: 'user', content: message, timestamp: new Date() });
 
     // Get AI response with mood context
@@ -44,8 +44,10 @@ router.post('/chat', authMiddleware, async (req, res) => {
     // Add AI response to history
     messages.push({ role: 'assistant', content: aiResponse, timestamp: new Date() });
 
-    // Update chat session
-    await chatSession.update({ messages });
+    // Update chat session - use changed() to force Sequelize to detect JSONB changes
+    chatSession.messages = messages;
+    chatSession.changed('messages', true);
+    await chatSession.save();
 
     res.json({
       message: 'Message sent',

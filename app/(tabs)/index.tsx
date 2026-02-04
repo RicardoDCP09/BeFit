@@ -5,6 +5,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useGymStore } from '@/store/gymStore';
 import { useProfileStore } from '@/store/profileStore';
 import { useUserStore } from '@/store/userStore';
+import { showAlert } from '@/utils/alert';
 import { getBMIColor } from '@/utils/calculations';
 import { FontAwesome } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -15,7 +16,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 
 export default function DashboardScreen() {
@@ -85,7 +86,16 @@ export default function DashboardScreen() {
         </View>
         <TouchableOpacity
           style={[styles.profileButton, { backgroundColor: colors.card }]}
-          onPress={logout}
+          onPress={() => {
+            showAlert(
+              'Cerrar Sesión',
+              '¿Estás seguro de que quieres cerrar sesión?',
+              [
+                { text: 'Cancelar', style: 'cancel' },
+                { text: 'Cerrar Sesión', style: 'destructive', onPress: logout },
+              ]
+            );
+          }}
         >
           <FontAwesome name="sign-out" size={20} color={colors.textSecondary} />
         </TouchableOpacity>

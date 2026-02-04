@@ -24,6 +24,7 @@ const Routine = require('./Routine')(sequelize);
 const ChatHistory = require('./ChatHistory')(sequelize);
 const WeightHistory = require('./WeightHistory')(sequelize);
 const WorkoutSession = require('./WorkoutSession')(sequelize);
+const RecipeHistory = require('./RecipeHistory')(sequelize);
 
 // Associations
 User.hasOne(HealthProfile, { foreignKey: 'userId', as: 'healthProfile' });
@@ -44,6 +45,9 @@ WorkoutSession.belongsTo(User, { foreignKey: 'userId' });
 Routine.hasMany(WorkoutSession, { foreignKey: 'routineId', as: 'sessions' });
 WorkoutSession.belongsTo(Routine, { foreignKey: 'routineId' });
 
+User.hasMany(RecipeHistory, { foreignKey: 'userId', as: 'recipeHistory' });
+RecipeHistory.belongsTo(User, { foreignKey: 'userId' });
+
 module.exports = {
   sequelize,
   User,
@@ -51,5 +55,6 @@ module.exports = {
   Routine,
   ChatHistory,
   WeightHistory,
-  WorkoutSession
+  WorkoutSession,
+  RecipeHistory
 };

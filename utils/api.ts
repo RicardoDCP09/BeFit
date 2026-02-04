@@ -171,6 +171,21 @@ export const kitchenApi = {
         body: JSON.stringify({ image }),
       }
     ),
+
+  getHistory: (favoritesOnly = false) =>
+    request<{ recipes: any[] }>(
+      `/kitchen/history${favoritesOnly ? '?favorites=true' : ''}`
+    ),
+
+  toggleFavorite: (id: number) =>
+    request<{ isFavorite: boolean }>(`/kitchen/history/${id}/favorite`, {
+      method: 'PUT',
+    }),
+
+  deleteRecipe: (id: number) =>
+    request<{ message: string }>(`/kitchen/history/${id}`, {
+      method: 'DELETE',
+    }),
 };
 
 // Mind API

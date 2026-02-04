@@ -2,19 +2,30 @@ import { ChatMessage, WellnessCard } from '@/types';
 import { mindApi } from '@/utils/api';
 import { create } from 'zustand';
 
+interface ChatSession {
+  id: number;
+  createdAt: string;
+  messages: ChatMessage[];
+  mood: string | null;
+}
+
 interface MindState {
   messages: ChatMessage[];
   wellnessCards: WellnessCard[];
+  chatHistory: ChatSession[];
   currentMood: string | null;
   quickReplies: string[];
   isSending: boolean;
   isLoadingTips: boolean;
+  isLoadingHistory: boolean;
   error: string | null;
 
   // Actions
   loadTodayChat: () => Promise<void>;
   sendMessage: (message: string, mood?: string) => Promise<void>;
   loadWellnessTips: (mood?: string) => Promise<void>;
+  loadChatHistory: () => Promise<void>;
+  viewPastSession: (session: ChatSession) => void;
   setMood: (mood: string) => void;
   clearMessages: () => void;
   clearError: () => void;
@@ -23,10 +34,12 @@ interface MindState {
 export const useMindStore = create<MindState>((set, get) => ({
   messages: [],
   wellnessCards: [],
+  chatHistory: [],
   currentMood: null,
   quickReplies: [],
   isSending: false,
   isLoadingTips: false,
+  isLoadingHistory: false,
   error: null,
 
   loadTodayChat: async () => {
@@ -101,6 +114,39 @@ export const useMindStore = create<MindState>((set, get) => ({
 
   setMood: (mood: string) => {
     set({ currentMood: mood });
+  },
+
+  loadChatHistory: async () => {
+    try {
+      set({ isLoadingHistory: true, error: null });
+      const response = await mindApi.getChatHistory();
+
+      // Map sessions to ensure correct field names (handle both camelCase and snake_case)
+      const mappedSessions = (response.sessions || []).map((session: any) => ({
+        id: session.id,
+        createdAt: session.createdAt || session.created_at,
+        messages: session.messages || [],
+        mood: session.mood,
+      }));
+
+      set({
+        chatHistory: mappedSessions,
+        isLoadingHistory: false,
+      });
+    } catch (error: any) {
+      console.error('Load chat history error:', error);
+      set({
+        chatHistory: [],
+        isLoadingHistory: false,
+      });
+    }
+  },
+
+  viewPastSession: (session) => {
+    set({
+      messages: session.messages || [],
+      currentMood: session.mood,
+    });
   },
 
   clearMessages: () => set({ messages: [], quickReplies: [], currentMood: null }),
